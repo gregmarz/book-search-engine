@@ -4,7 +4,15 @@ const { User, Book } = require("../models");
 const { signToken } = require("../utils/auth");
 
 const resolvers = {
-  Query: {},
+  Query: {
+    me: async (parent, arg, context) => {
+      if (context.user) {
+        return User.findOne({ _id: context.user._id });
+      } else {
+        throw new AuthenticationError("You must log in first");
+      }
+    },
+  },
   Mutation: {
     addUser: async (parent, { username, email, password }) => {
       const user = await User.create({ username, email, password });
@@ -22,6 +30,28 @@ const resolvers = {
       }
       const token = signToken(user);
       return { user, token };
+    },
+    addBook: async (parent, book, context) => {
+      if (context.user) {
+        const updateBook = await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { $push: { savedBooks: book.input } }
+        );
+        return updateBook;
+      } else {
+        throw new AuthenticationError("You must log in first");
+      }
+    },
+    removeBook: async (parent, book, context) => {
+      if (context.user) {
+        const data = await User.findOneAndReplace(
+          { _id: context.user._id },
+          { $pull: { savedBooks: { bookId: book.bookId } } }
+        );
+        return data;
+      } else {
+        throw new AuthenticationError("You must log in first");
+      }
     },
   },
 };
